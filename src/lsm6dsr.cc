@@ -260,4 +260,35 @@ bool LSM6DSR::ReadAccAndGyro(float& gyro_x, float& gyro_y, float& gyro_z,
   return true;
 }
 
+bool LSM6DSR::ResetMemory() {
+  uint8_t ctrl3_c;
+  ReadRegister(Register::CTRL3_C, &ctrl3_c);
+
+  // Set the BOOT bit
+  ctrl3_c |= 0b1000000;
+
+  // Write back to the CTRL3_C register
+  return WriteRegister(Register::CTRL3_C, &ctrl3_c);
+}
+
+bool LSM6DSR::RebootDevice() {
+  uint8_t ctrl3_c;
+  ReadRegister(Register::CTRL3_C, &ctrl3_c);
+
+  // Set the SW_RESET bit
+  ctrl3_c |= 0b00000001;
+
+  // Write back to the CTRL3_C register
+  return WriteRegister(Register::CTRL3_C, &ctrl3_c);
+}
+
+void LSM6DSR::EnableCs() {
+  spi_->SetChipSelectForCommunication(cs_);
+  if (gpio_) { gpio_->Write(false); }
+}
+
+void LSM6DSR::DisableCs() {
+  if (gpio_) { gpio_->Write(true); }
+}
+
 }  // namespace lsm6dsr_rpl4_lib

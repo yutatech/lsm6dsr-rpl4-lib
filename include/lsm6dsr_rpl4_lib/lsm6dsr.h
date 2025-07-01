@@ -229,6 +229,19 @@ class LSM6DSR {
   bool ReadAccAndGyro(float& gyro_x, float& gyro_y, float& gyro_z, float& acc_x,
                       float& acc_y, float& acc_z);
 
+  /**
+   * @brief Reset the memory of the LSM6DSR device. All registers will be set to
+   *        their default values. You sould wait for 15ms after this.
+   * @return true if the reset is successful, false if it fails.
+   */
+  bool ResetMemory();
+
+  /**
+   * @brief Reboot the LSM6DSR device. You should wait for 50us after this.
+   * @return true if the reboot is successful, false if it fails.
+   */
+  bool RebootDevice();
+
  private:
   std::shared_ptr<rpl::Spi> spi_;
   std::shared_ptr<rpl::Gpio> gpio_;
