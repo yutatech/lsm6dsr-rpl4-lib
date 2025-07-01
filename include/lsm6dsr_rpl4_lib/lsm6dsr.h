@@ -2,13 +2,15 @@
 #define LSM6DSR_RPL4_LIB_LSM6DSR_H
 
 #include "lsm6dsr_rpl4_lib/registers.h"
+#include "rpl4/peripheral/gpio.hpp"
 #include "rpl4/peripheral/spi.hpp"
 #include "rpl4/rpl4.hpp"
 
 namespace lsm6dsr_rpl4_lib {
 class LSM6DSR {
  public:
-  LSM6DSR(std::shared_ptr<rpl::Spi> spi, rpl::Spi::ChipSelect cs);
+  LSM6DSR(std::shared_ptr<rpl::Spi> spi, rpl::Spi::ChipSelect cs,
+          std::shared_ptr<rpl::Gpio> gpio = nullptr);
   ~LSM6DSR() = default;
 
   /**
@@ -215,7 +217,7 @@ class LSM6DSR {
 
   /**
    * @brief Read accelerometer and gyroscope data.
-   * 
+   *
    * @param gyro_x pointer to store the x-axis gyroscope data.
    * @param gyro_y pointer to store the y-axis gyroscope data.
    * @param gyro_z pointer to store the z-axis gyroscope data.
@@ -229,9 +231,13 @@ class LSM6DSR {
 
  private:
   std::shared_ptr<rpl::Spi> spi_;
+  std::shared_ptr<rpl::Gpio> gpio_;
   rpl::Spi::ChipSelect cs_;
   float acc_sensitivity_ = 0.0f;
   float gyro_sensitivity_ = 0.0f;
+
+  void EnableCs();
+  void DisableCs();
 };
 
 }  // namespace lsm6dsr_rpl4_lib

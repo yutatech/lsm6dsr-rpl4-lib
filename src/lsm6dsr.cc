@@ -1,16 +1,26 @@
 #include "lsm6dsr_rpl4_lib/lsm6dsr.h"
 
-#include <bitset>
 #include <iostream>
 
 #include "lsm6dsr_rpl4_lib/registers.h"
+#include "rpl4/peripheral/gpio.hpp"
+#include "rpl4/peripheral/spi.hpp"
 
 namespace lsm6dsr_rpl4_lib {
 
-LSM6DSR::LSM6DSR(std::shared_ptr<rpl::Spi> spi, rpl::Spi::ChipSelect cs)
-    : spi_(spi), cs_(cs) {}
+LSM6DSR::LSM6DSR(std::shared_ptr<rpl::Spi> spi, rpl::Spi::ChipSelect cs,
+                 std::shared_ptr<rpl::Gpio> gpio)
+    : spi_(spi), cs_(cs), gpio_(gpio) {}
 
-bool LSM6DSR::Init() {}
+bool LSM6DSR::Init() {
+  if (gpio_) {
+    gpio_->SetAltFunction(rpl::Gpio::AltFunction::kOutput);
+    gpio_->SetPullRegister(rpl::Gpio::PullRegister::kNoRegister);
+    gpio_->Write(true);
+  }
+  WriteI3cEnabled(LSM6DSR::EnableState::kDisabled);
+  WriteAutoIncrementEnabled(LSM6DSR::EnableState::kEnabled);
+}
 
 bool LSM6DSR::ReadAccel(float* x, float* y, float* z) {
   return true;  // or false on failure
@@ -21,21 +31,21 @@ bool LSM6DSR::ReadGyro(float* x, float* y, float* z) {
 }
 
 bool LSM6DSR::WriteRegister(Register address, uint8_t* data) {
-  spi_->SetChipSelectForCommunication(cs_);
-
   uint8_t tx_buf[2];
   uint8_t rx_buf[2];
 
   tx_buf[0] = static_cast<uint8_t>(address);
   tx_buf[1] = *data;
 
+  EnableCs();
   spi_->TransmitAndReceiveBlocking(tx_buf, rx_buf, 2);
+  DisableCs();
 
   return true;
 }
 
 bool LSM6DSR::ReadRegister(Register address, uint8_t* data) {
-  spi_->SetChipSelectForCommunication(cs_);
+  // spi_->SetChipSelectForCommunication(cs_);
 
   uint8_t tx_buf[2];
   uint8_t rx_buf[2];
@@ -43,7 +53,9 @@ bool LSM6DSR::ReadRegister(Register address, uint8_t* data) {
   tx_buf[0] = static_cast<uint8_t>(address) | 0b10000000;
   tx_buf[1] = 0;
 
+  EnableCs();
   spi_->TransmitAndReceiveBlocking(tx_buf, rx_buf, 2);
+  DisableCs();
 
   *data = rx_buf[1];
 
@@ -52,28 +64,28 @@ bool LSM6DSR::ReadRegister(Register address, uint8_t* data) {
 
 bool LSM6DSR::WriteRegisters(Register start_address, uint8_t* data,
                              size_t length) {
-  spi_->SetChipSelectForCommunication(cs_);
-
   uint8_t tx_buf[length + 1];
   uint8_t rx_buf[length + 1];
 
   tx_buf[0] = static_cast<uint8_t>(start_address);
   for (size_t i = 0; i < length; ++i) { tx_buf[i + 1] = data[i]; }
 
+  EnableCs();
   spi_->TransmitAndReceiveBlocking(tx_buf, rx_buf, length + 1);
+  DisableCs();
 
   return true;
 }
 
 bool LSM6DSR::ReadRegisters(Register start_address, uint8_t* data,
                             size_t length) {
-  spi_->SetChipSelectForCommunication(cs_);
-
   uint8_t tx_buf[length + 1];
   uint8_t rx_buf[length + 1];
   tx_buf[0] = static_cast<uint8_t>(start_address) | 0b10000000;
 
+  EnableCs();
   spi_->TransmitAndReceiveBlocking(tx_buf, rx_buf, length + 1);
+  DisableCs();
 
   for (size_t i = 0; i < length; ++i) { data[i] = rx_buf[i + 1]; }
 
@@ -159,22 +171,22 @@ void LSM6DSR::ConfigureGyroSensitivity(GyroFullScale full_scale) {
       gyro_sensitivity_ = 0.004375f;  // Sensitivity for 125 dps
       break;
     case GyroFullScale::k250dps:
-      gyro_sensitivity_ = 0.00875f;   // Sensitivity for 250 dps
+      gyro_sensitivity_ = 0.00875f;  // Sensitivity for 250 dps
       break;
     case GyroFullScale::k500dps:
-      gyro_sensitivity_ = 0.0175f;    // Sensitivity for 500 dps
+      gyro_sensitivity_ = 0.0175f;  // Sensitivity for 500 dps
       break;
     case GyroFullScale::k1000dps:
-      gyro_sensitivity_ = 0.035f;     // Sensitivity for 1000 dps
+      gyro_sensitivity_ = 0.035f;  // Sensitivity for 1000 dps
       break;
     case GyroFullScale::k2000dps:
-      gyro_sensitivity_ = 0.07f;      // Sensitivity for 2000 dps
+      gyro_sensitivity_ = 0.07f;  // Sensitivity for 2000 dps
       break;
     case GyroFullScale::k4000dps:
-      gyro_sensitivity_ = 0.14f;      // Sensitivity for 4000 dps
+      gyro_sensitivity_ = 0.14f;  // Sensitivity for 4000 dps
       break;
     default:
-      gyro_sensitivity_ = 0.0f;       // Invalid full scale
+      gyro_sensitivity_ = 0.0f;  // Invalid full scale
       break;
   }
 }
@@ -226,14 +238,13 @@ void LSM6DSR::ConfigureAccSensitivity(AccelFullScale full_scale) {
       acc_sensitivity_ = 0.488f;  // Sensitivity for 16g
       break;
     default:
-      acc_sensitivity_ = 0.0f;     // Invalid full scale
+      acc_sensitivity_ = 0.0f;  // Invalid full scale
       break;
   }
 }
 
-bool LSM6DSR::ReadAccAndGyro(float& gyro_x, float& gyro_y,
-                             float& gyro_z, float& acc_x, float& acc_y,
-                             float& acc_z) {
+bool LSM6DSR::ReadAccAndGyro(float& gyro_x, float& gyro_y, float& gyro_z,
+                             float& acc_x, float& acc_y, float& acc_z) {
   uint8_t data[12];
   bool status = ReadRegisters(Register::OUTX_L_G, data, 12);
   if (!status) { return status; }
