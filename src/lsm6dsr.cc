@@ -13,13 +13,15 @@ LSM6DSR::LSM6DSR(std::shared_ptr<rpl::Spi> spi, rpl::Spi::ChipSelect cs,
     : spi_(spi), cs_(cs), gpio_(gpio) {}
 
 bool LSM6DSR::Init() {
+  bool is_success = true;
   if (gpio_) {
     gpio_->SetAltFunction(rpl::Gpio::AltFunction::kOutput);
     gpio_->SetPullRegister(rpl::Gpio::PullRegister::kNoRegister);
     gpio_->Write(true);
   }
-  WriteI3cEnabled(LSM6DSR::EnableState::kDisabled);
-  WriteAutoIncrementEnabled(LSM6DSR::EnableState::kEnabled);
+  is_success &= WriteI3cEnabled(LSM6DSR::EnableState::kDisabled);
+  is_success &= WriteAutoIncrementEnabled(LSM6DSR::EnableState::kEnabled);
+  return is_success;
 }
 
 bool LSM6DSR::ReadAccel(float* x, float* y, float* z) {
@@ -45,8 +47,6 @@ bool LSM6DSR::WriteRegister(Register address, uint8_t* data) {
 }
 
 bool LSM6DSR::ReadRegister(Register address, uint8_t* data) {
-  // spi_->SetChipSelectForCommunication(cs_);
-
   uint8_t tx_buf[2];
   uint8_t rx_buf[2];
 
