@@ -8,16 +8,16 @@
 
 namespace lsm6dsr_rpl4_lib {
 
-LSM6DSR::LSM6DSR(std::shared_ptr<rpl::Spi> spi, rpl::Spi::ChipSelect cs,
-                 std::shared_ptr<rpl::Gpio> gpio)
-    : spi_(spi), cs_(cs), gpio_(gpio) {}
+LSM6DSR::LSM6DSR(std::shared_ptr<rpl::SpiBase> spi, uint8_t cs_num,
+                 std::shared_ptr<rpl::Gpio> cs_gpio)
+    : spi_(spi), cs_num_(cs_num), cs_gpio_(cs_gpio) {}
 
 bool LSM6DSR::Init() {
   bool is_success = true;
-  if (gpio_) {
-    gpio_->SetAltFunction(rpl::Gpio::AltFunction::kOutput);
-    gpio_->SetPullRegister(rpl::Gpio::PullRegister::kNoRegister);
-    gpio_->Write(true);
+  if (cs_gpio_) {
+    cs_gpio_->SetAltFunction(rpl::Gpio::AltFunction::kOutput);
+    cs_gpio_->SetPullRegister(rpl::Gpio::PullRegister::kNoRegister);
+    cs_gpio_->Write(true);
   }
   is_success &= WriteI3cEnabled(LSM6DSR::EnableState::kDisabled);
   is_success &= WriteAutoIncrementEnabled(LSM6DSR::EnableState::kEnabled);
@@ -283,12 +283,12 @@ bool LSM6DSR::RebootDevice() {
 }
 
 void LSM6DSR::EnableCs() {
-  spi_->SetChipSelectForCommunication(cs_);
-  if (gpio_) { gpio_->Write(false); }
+  spi_->SetChipSelectForCommunication(cs_num_);
+  if (cs_gpio_) { cs_gpio_->Write(false); }
 }
 
 void LSM6DSR::DisableCs() {
-  if (gpio_) { gpio_->Write(true); }
+  if (cs_gpio_) { cs_gpio_->Write(true); }
 }
 
 }  // namespace lsm6dsr_rpl4_lib

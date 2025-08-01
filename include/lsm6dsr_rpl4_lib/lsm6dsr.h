@@ -3,14 +3,14 @@
 
 #include "lsm6dsr_rpl4_lib/registers.h"
 #include "rpl4/peripheral/gpio.hpp"
-#include "rpl4/peripheral/spi.hpp"
+#include "rpl4/peripheral/spi_base.hpp"
 #include "rpl4/rpl4.hpp"
 
 namespace lsm6dsr_rpl4_lib {
 class LSM6DSR {
  public:
-  LSM6DSR(std::shared_ptr<rpl::Spi> spi, rpl::Spi::ChipSelect cs,
-          std::shared_ptr<rpl::Gpio> gpio = nullptr);
+  LSM6DSR(std::shared_ptr<rpl::SpiBase> spi, uint8_t cs_num,
+          std::shared_ptr<rpl::Gpio> cs_gpio = nullptr);
   ~LSM6DSR() = default;
 
   /**
@@ -243,9 +243,9 @@ class LSM6DSR {
   bool RebootDevice();
 
  private:
-  std::shared_ptr<rpl::Spi> spi_;
-  std::shared_ptr<rpl::Gpio> gpio_;
-  rpl::Spi::ChipSelect cs_;
+  std::shared_ptr<rpl::SpiBase> spi_;
+  std::shared_ptr<rpl::Gpio> cs_gpio_;
+  uint8_t cs_num_;
   float acc_sensitivity_ = 0.0f;
   float gyro_sensitivity_ = 0.0f;
 
